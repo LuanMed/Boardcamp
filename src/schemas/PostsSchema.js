@@ -22,7 +22,7 @@ export const gamesSchema = Joi.object({
 });
 
 export const rentalsSchema = Joi.object({
-    customersId: Joi.number().positive().integer().required(),
+    customerId: Joi.number().positive().integer().required(),
     gameId: Joi.number().positive().integer().required(),
     daysRented: Joi.number().integer().required()
 });
