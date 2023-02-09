@@ -3,7 +3,14 @@ import dayjs from "dayjs";
 
 export async function listRentals(req, res) {
     try {
-        const rentals = await db.query(`SELECT * FROM rentals;`);
+        // const rentals = await db.query(`SELECT * FROM rentals;`);
+
+        const rentals = await db.query(`SELECT rentals.*,
+        json_build_object('id', customers.id, 'name', customers.name) AS customer,
+        json_build_object('id', games.id, 'name', games.name) AS game 
+        FROM rentals
+        JOIN customers ON rentals."customerId" = customers.id
+        JOIN games ON rentals."gameId" = games.id;`);
 
         //const customers = await db.query(`SELECT rentals.*, customers.name, customers.id FROM rentals RIGHT JOIN customers ON rentals."customerId" = customers.id`);
         //const games = await db.query(`SELECT rentals.*, games.name, games.id FROM rentals RIGHT JOIN customers ON rentals."gameId" = game.id`);
@@ -11,26 +18,21 @@ export async function listRentals(req, res) {
         // const rentals = await db.query(`SELECT * FROM rentals;`);
         // const listRentals = rentals.rows.map()
 
-        const customers = [];
-        const games = [];
-        for (let i = 0; i < rentals.rows.length; i++) {
-            customers.push((await db.query(`SELECT customers.id, customers.name FROM customers WHERE id = $1`, [rentals.rows[i].customerId])).rows[0]);
-            games.push((await db.query(`SELECT games.id, games.name FROM games WHERE id = $1`, [rentals.rows[i].gameId])).rows[0]);
-        }
-        console.log(customers);
-        console.log(games);
+        // const customers = [];
+        // const games = [];
+        // for (let i = 0; i < rentals.rows.length; i++) {
+        //     customers.push((await db.query(`SELECT customers.id, customers.name FROM customers WHERE id = $1`, [rentals.rows[i].customerId])).rows[0]);
+        //     games.push((await db.query(`SELECT games.id, games.name FROM games WHERE id = $1`, [rentals.rows[i].gameId])).rows[0]);
+        // }
+        // console.log(customers);
+        // console.log(games);
         //const game = (await db.query(`SELECT games.id, games.name FROM games WHERE id = $1`, [rentals.rows[0].gameId])).rows[0];
         // console.log(game)
 
-        for (let i = 0; i < rentals.rows.length; i++) {
-            rentals.rows[i].customer = customers[i];
-            rentals.rows[i].game = games[i];
-        }
-
-        const returnDate = dayjs();
-        const aux = returnDate - rentals.rows[0].rentDate;
-        console.log(aux)
-        console.log(returnDate.$d)
+        // for (let i = 0; i < rentals.rows.length; i++) {
+        //     rentals.rows[i].customer = customers[i];
+        //     rentals.rows[i].game = games[i];
+        // }
 
         res.send(rentals.rows);
     } catch (error) {
@@ -73,14 +75,14 @@ export async function returnRental(req, res) {
 
     try {
         const rental = await db.query('SELECT * FROM rentals WHERE id = $1;', [id]);
-        //if (rental.rows.length === 0) return res.status(404).send("Aluguel não existe");
-        //if (rental.rows[0].returnDate) return res.status(400).send("Aluguel já foi finalizado");
+        if (rental.rows.length === 0) return res.status(404).send("Aluguel não existe");
+        if (rental.rows[0].returnDate) return res.status(400).send("Aluguel já foi finalizado");
 
-        const daysUsed = parseInt((returnDate.$d - rental.rows[0].rentDate) / 86400000);
+        const daysUsed = parseInt((returnDate - rental.rows[0].rentDate) / 86400000);
         console.log(returnDate.$d);
 
         console.log(rental.rows[0].rentDate);
-        console.log((returnDate.$d - rental.rows[0].rentDate));
+        console.log((returnDate - rental.rows[0].rentDate));
         console.log(daysUsed);
 
         if (daysUsed > rental.rows[0].daysRented) delayFee = (daysUsed - rental.rows[0].daysRented) * (rental.rows[0].originalPrice / rental.rows[0].daysRented);
@@ -89,6 +91,22 @@ export async function returnRental(req, res) {
 
         res.sendStatus(200);
 
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+}
+
+export async function deleteRental(req, res) {
+    const { id } = req.params;
+
+    try {
+        const rental = await db.query('SELECT * FROM rentals WHERE id = $1;', [id]);
+        if (rental.rows.length === 0) return res.status(404).send("Aluguel não existe");
+        if (!rental.rows[0].returnDate) return res.status(400).send("Aluguel ainda não foi devolvido");
+
+        await db.query('DELETE FROM rentals WHERE id = $1;', [id]);
+
+        res.sendStatus(200);
     } catch (error) {
         res.status(500).send(error.message);
     }
