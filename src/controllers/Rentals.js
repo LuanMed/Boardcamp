@@ -73,14 +73,19 @@ export async function returnRental(req, res) {
 
     try {
         const rental = await db.query('SELECT * FROM rentals WHERE id = $1;', [id]);
-        if (rental.rows.length === 0) return res.status(404).send("Aluguel não existe");
-        if (rental.rows[0].returnDate) return res.status(400).send("Aluguel já foi finalizado");
+        //if (rental.rows.length === 0) return res.status(404).send("Aluguel não existe");
+        //if (rental.rows[0].returnDate) return res.status(400).send("Aluguel já foi finalizado");
 
-        const daysUsed = parseInt((returnDate - rental.rows[0].rentDate) / 86400);
+        const daysUsed = parseInt((returnDate.$d - rental.rows[0].rentDate) / 86400000);
+        console.log(returnDate.$d);
+
+        console.log(rental.rows[0].rentDate);
+        console.log((returnDate.$d - rental.rows[0].rentDate));
+        console.log(daysUsed);
 
         if (daysUsed > rental.rows[0].daysRented) delayFee = (daysUsed - rental.rows[0].daysRented) * (rental.rows[0].originalPrice / rental.rows[0].daysRented);
 
-        await db.query(`UPDATE rentals SET "returnDate"= $1, "delayFee"= $2 WHERE id = $3;`, [returnDate, delayFee, id]);
+        await db.query(`UPDATE rentals SET "returnDate"= $1, "delayFee"= $2 WHERE id = $3;`, [returnDate.$d, delayFee, id]);
 
         res.sendStatus(200);
 
