@@ -68,8 +68,23 @@ export async function insertRentals(req, res) {
 
 export async function returnRental(req, res) {
     const { id } = req.params;
-    const body = req.body;
-
     const returnDate = dayjs();
-    console.log(returnDate)
+    let delayFee = 0;
+
+    try {
+        const rental = await db.query('SELECT * FROM rentals WHERE id = $1;', [id]);
+        if (rental.rows.length === 0) return res.status(404).send("Aluguel não existe");
+        if (rental.rows[0].returnDate) return res.status(400).send("Aluguel já foi finalizado");
+
+        const daysUsed = parseInt((returnDate - rental.rows[0].rentDate) / 86400);
+
+        if (daysUsed > rental.rows[0].daysRented) delayFee = (daysUsed - rental.rows[0].daysRented) * (rental.rows[0].originalPrice / rental.rows[0].daysRented);
+
+        await db.query(`UPDATE rentals SET "returnDate"= $1, "delayFee"= $2 WHERE id = $3;`, [returnDate, delayFee, id]);
+
+        res.sendStatus(200);
+
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
 }
